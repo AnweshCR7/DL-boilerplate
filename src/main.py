@@ -12,6 +12,7 @@ import config
 # import dataset
 from utils.model_utils import plot_loss
 from models.simpleCNN import SimpleCNN
+from models.lenet import LeNet
 
 
 def run_training():
@@ -39,7 +40,14 @@ def run_training():
         shuffle=False
     )
 
-    model = SimpleCNN()
+    model = LeNet()
+
+    if torch.cuda.is_available():
+        print('GPU available... using GPU')
+        torch.cuda.manual_seed_all(42)
+
+    # device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+
     model.to(config.DEVICE)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)

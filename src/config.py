@@ -2,7 +2,7 @@ DATA_DIR = "/content/drive/MyDrive/data/"
 CHECKPOINT_PATH = "/content/drive/MyDrive/data/MNIST/checkpoint"
 PLOT_PATH = "/content/drive/MyDrive/data/MNIST/plots"
 NUM_WORKERS = 1
-DEVICE = "gpu"
+DEVICE = "cuda"
 BATCH_SIZE = 32
 EPOCHS = 10
 

@@ -1,4 +1,4 @@
-# DL_boilerplate
+# Deep Learning Boilerplate code or Scaffolding.
 A boilerplate to get started with any Deep Learning project (Vision)
 
 #### Dataset:

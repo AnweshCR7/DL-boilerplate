@@ -1,3 +1,4 @@
+"""Simple CNN class."""
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -23,7 +24,7 @@ class SimpleCNN(nn.Module):
         return "SimpleCNN"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cm = SimpleCNN()
     img = torch.rand(3, 28, 28)
     target = torch.randint(1, 20, (5, 5))

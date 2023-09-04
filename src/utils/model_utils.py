@@ -1,51 +1,72 @@
+"""Model save/load utilities."""
 import os
+from pathlib import Path
+from typing import Any, Tuple
+
 import torch
-import numpy as np
-import matplotlib.pyplot as plt
+from loguru import logger
 
 
-def plot_loss(train_loss_data, test_loss_data, plot_path):
-    if not os.path.exists(plot_path):
-        os.makedirs(plot_path)
-
-    x_ax = np.arange(1, len(train_loss_data)+1)
-    fig = plt.figure()
-    plt.plot(x_ax, train_loss_data, label="train_loss")
-    plt.plot(x_ax, test_loss_data, label="test_loss")
-    plt.title('Train-Test Loss')
-    plt.ylabel('Loss')
-    plt.xlabel('Num Epoch')
-    plt.legend(loc='best')
-    plt.show()
-    fig.savefig(plot_path+'/train-test_loss.png', dpi=fig.dpi)
-
-
-def save_model_checkpoint(model, optimizer, loss, checkpoint_path):
-    save_filename = "running_model.pt"
-    # checkpoint_path = os.path.join(checkpoint_path, save_filename)
+def save_model_checkpoint(
+    model: Any,
+    loss: float,
+    optimizer: Any = None,
+    scheduler: Any = None,
+    checkpoint_path: str = ".",
+    model_filename: str = "running_model.pt",
+) -> None:
+    """Function to save model checkpoint.
+    Args:
+        model: model to be saved
+        loss: loss computed for the model
+        optimizer: optimizer to be saved
+        scheduler: scheduler to be saved
+        checkpoint_path: path for saving checkpoint
+        model_filename: name of the checkpoint file to be saved
+    """
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path)
 
-    torch.save({
-        # 'epoch': epoch,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'loss': loss,
-    }, os.path.join(checkpoint_path,save_filename))
-    print('Saved!')
+    try:
+        torch.save(
+            {
+                # 'epoch': epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "loss": loss,
+            },
+            os.path.join(checkpoint_path, model_filename),
+        )
+        logger.info(f"{model_filename} saved successfully")
+    except:
+        logger.error(f"There was an error while saving {model_filename}")
 
 
-def load_model_if_checkpointed(model, optimizer, checkpoint_path):
+def load_model(
+    model: Any,
+    checkpoint_path: Path,
+    optimizer: Any = None,
+    device: torch.device = "cpu",
+) -> Tuple[Any, Any, float]:
+    """Function to load model from saved checkpoint.
+    Args:
+        model: model object to which weights will be loaded
+        checkpoint_path: path for saving checkpoint
+        optimizer: optimizer object
+        device: device to load the model onto (cpu, gpu)
+
+    Returns:
+        Model, Optimizer and the loss
+    """
     loss = 0.0
-    checkpoint_flag = False
-
+    checkpoint_path = str(checkpoint_path)
     # check if checkpoint exists
-    if os.path.exists(os.path.join(checkpoint_path, "running_model.pt")):
-        checkpoint_flag = True
-        checkpoint = torch.load(os.path.join(checkpoint_path, "running_model.pt"))
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    if os.path.exists(str(checkpoint_path)):
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        if optimizer:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         # epoch = checkpoint['epoch']
-        loss = checkpoint['loss']
+        loss = checkpoint["loss"]
 
-    return model, optimizer, loss, checkpoint_flag
+    return model, optimizer, loss

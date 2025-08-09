@@ -1,0 +1,35 @@
+# @package _global_
+
+# Model configuration for SegFormer-B0
+model:
+  _target_: src.model.SegFormerLightningModule
+  
+  # Model architecture
+  model_name: "nvidia/segformer-b0-finetuned-ade-512-512"
+  num_classes: ${data.num_classes}
+  
+  # Training hyperparameters
+  learning_rate: ${optimizer.lr}
+  weight_decay: ${optimizer.weight_decay}
+  
+  # Loss function
+  loss_fn:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: 255
+    weight: null
+  
+  # Metrics
+  metrics:
+    - "accuracy"
+    - "iou"
+    - "dice"
+  
+  # Model specific settings
+  pretrained: true
+  freeze_encoder: false
+  dropout: 0.1
+  
+  # Inference settings
+  inference:
+    apply_softmax: true
+    threshold: 0.5

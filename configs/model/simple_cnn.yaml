@@ -1,0 +1,24 @@
+# @package _global_
+
+# Model configuration for Simple CNN (MNIST classification)
+model:
+  _target_: src.model.SimpleCNN
+  
+  # Model architecture
+  num_classes: ${data.num_classes}
+  
+  # Training hyperparameters
+  learning_rate: ${optimizer.lr}
+  weight_decay: ${optimizer.weight_decay}
+  
+  # Model specific settings
+  dropout: 0.5
+  
+  # Loss function
+  loss_fn:
+    _target_: torch.nn.CrossEntropyLoss
+  
+  # Metrics
+  metrics:
+    - "accuracy"
+    - "f1"

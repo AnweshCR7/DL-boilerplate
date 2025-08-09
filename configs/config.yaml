@@ -1,0 +1,52 @@
+# Main configuration file
+defaults:
+  - data: oxford_pet
+  - model: segformer_b0
+  - _self_
+
+# Experiment settings
+experiment_name: "pet_segmentation_experiment"
+tags: ["pytorch-lightning", "segmentation", "oxford-pet"]
+
+# Training settings
+trainer:
+  max_epochs: 10
+  accelerator: auto
+  devices: auto
+  precision: 32  # Use 32-bit precision for MPS compatibility
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 10
+  enable_checkpointing: true
+  enable_progress_bar: true
+  enable_model_summary: true
+  limit_train_batches: null
+  limit_val_batches: null
+  limit_test_batches: null
+
+# Optimizer settings
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 1e-4
+  weight_decay: 1e-2
+
+# Scheduler settings
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: 100
+  eta_min: 1e-6
+
+# Logging
+logger:
+  _target_: pytorch_lightning.loggers.TensorBoardLogger
+  save_dir: "logs/"
+  name: "${experiment_name}"
+  version: null
+
+# Paths
+paths:
+  data_dir: "data/"
+  log_dir: "logs/"
+  output_dir: "outputs/"
+
+# Misc
+seed: 42

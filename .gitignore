@@ -1,2 +1,59 @@
-/data/MNIST
-/venv/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+.uv/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# PyTorch models and checkpoints
+*.pt
+*.pth
+*.ckpt
+
+# Training outputs
+logs/
+lightning_logs/
+outputs/
+.hydra/
+multirun/
+checkpoints/
+results/
+
+# Experiment tracking
+wandb/
+.clearml/
+
+# Data (add specific folders if needed)
+data/
+data/raw/
+data/processed/
+
+# Temporary files
+*.tmp
+*.log
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/

@@ -1,8 +1,9 @@
 """FastAPI application for model inference."""
+from __future__ import annotations
+
 import io
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 import torch
 import uvicorn
@@ -14,12 +15,11 @@ from pydantic import BaseModel
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-from src.model import SegFormerLightningModule, SimpleCNN
-from src.utils import get_logger, overlay_mask_on_image, create_color_map
+from src.model import SegFormerLightningModule
 
 
 # Initialize logger
-log = get_logger(__name__)
+from loguru import logger
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -39,8 +39,8 @@ class PredictionResponse(BaseModel):
     """Response model for predictions."""
     success: bool
     message: str
-    predictions: Optional[List[Dict[str, Any]]] = None
-    processing_time: Optional[float] = None
+    predictions: list[dict[str, any]] | None = None
+    processing_time: float | None = None
 
 
 class HealthResponse(BaseModel):
@@ -55,18 +55,16 @@ def load_model(model_path: str, model_type: str = "segformer") -> torch.nn.Modul
     try:
         if model_type.lower() == "segformer":
             model = SegFormerLightningModule.load_from_checkpoint(model_path)
-        elif model_type.lower() == "simplecnn":
-            model = SimpleCNN.load_from_checkpoint(model_path)
         else:
             raise ValueError(f"Unsupported model type: {model_type}")
         
         model.eval()
         model.to(device)
-        log.info(f"Model loaded successfully from {model_path}")
+        logger.info(f"Model loaded successfully from {model_path}")
         return model
         
     except Exception as e:
-        log.error(f"Failed to load model: {e}")
+        logger.error(f"Failed to load model: {e}")
         raise
 
 
@@ -102,7 +100,7 @@ def postprocess_predictions(
     logits: torch.Tensor,
     original_size: tuple,
     apply_softmax: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, any]:
     """Postprocess model predictions."""
     # Apply softmax to get probabilities
     if apply_softmax:
@@ -153,17 +151,17 @@ async def startup_event():
     try:
         # Setup preprocessing
         transform = setup_preprocessing(image_size)
-        log.info("Preprocessing pipeline initialized")
+        logger.info("Preprocessing pipeline initialized")
         
         # Load model if path exists
         if os.path.exists(model_path):
             model = load_model(model_path, model_type)
-            log.info("Model loaded successfully")
+            logger.info("Model loaded successfully")
         else:
-            log.warning(f"Model path {model_path} does not exist. API will run without model.")
+            logger.warning(f"Model path {model_path} does not exist. API will run without model.")
             
     except Exception as e:
-        log.error(f"Failed to initialize API: {e}")
+        logger.error(f"Failed to initialize API: {e}")
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -224,7 +222,7 @@ async def predict(file: UploadFile = File(...)):
         )
         
     except Exception as e:
-        log.error(f"Prediction failed: {e}")
+        logger.error(f"Prediction failed: {e}")
         return PredictionResponse(
             success=False,
             message=f"Prediction failed: {str(e)}",
@@ -232,7 +230,7 @@ async def predict(file: UploadFile = File(...)):
 
 
 @app.post("/predict_batch", response_model=PredictionResponse)
-async def predict_batch(files: List[UploadFile] = File(...)):
+async def predict_batch(files: list[UploadFile] = File(...)):
     """Predict on multiple uploaded images."""
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
@@ -289,7 +287,7 @@ async def predict_batch(files: List[UploadFile] = File(...)):
         )
         
     except Exception as e:
-        log.error(f"Batch prediction failed: {e}")
+        logger.error(f"Batch prediction failed: {e}")
         return PredictionResponse(
             success=False,
             message=f"Batch prediction failed: {str(e)}",

@@ -1,5 +1,5 @@
 """PyTorch Lightning model definitions."""
-from typing import Any, Dict, List, Optional, Tuple
+from __future__ import annotations
 
 import torch
 import torch.nn as nn
@@ -18,12 +18,12 @@ class SegFormerLightningModule(pl.LightningModule):
         num_classes: int = 10,
         learning_rate: float = 1e-4,
         weight_decay: float = 1e-2,
-        loss_fn: Optional[nn.Module] = None,
-        metrics: List[str] = None,
+        loss_fn: nn.Module | None = None,
+        metrics: list[str] | None = None,
         pretrained: bool = True,
         freeze_encoder: bool = False,
         dropout: float = 0.1,
-        inference: Optional[Dict[str, Any]] = None,
+        inference: dict[str, any] | None = None,
         **kwargs,
     ):
         """Initialize the SegFormer Lightning module.
@@ -88,7 +88,7 @@ class SegFormerLightningModule(pl.LightningModule):
         self.val_metrics = self._setup_metrics(metrics, "val")
         self.test_metrics = self._setup_metrics(metrics, "test")
     
-    def _setup_metrics(self, metric_names: List[str], stage: str) -> nn.ModuleDict:
+    def _setup_metrics(self, metric_names: list[str], stage: str) -> nn.ModuleDict:
         """Setup metrics for a given stage."""
         metrics_dict = nn.ModuleDict()
         
@@ -113,7 +113,7 @@ class SegFormerLightningModule(pl.LightningModule):
         outputs = self.model(x)
         return outputs.logits
     
-    def _shared_step(self, batch: Dict[str, torch.Tensor], stage: str) -> Dict[str, torch.Tensor]:
+    def _shared_step(self, batch: dict[str, torch.Tensor], stage: str) -> dict[str, torch.Tensor]:
         """Shared step for train/val/test."""
         images = batch["image"]
         targets = batch.get("mask", None)
@@ -144,7 +144,7 @@ class SegFormerLightningModule(pl.LightningModule):
             "targets": targets,
         }
     
-    def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         """Training step."""
         outputs = self._shared_step(batch, "train")
         loss = outputs["loss"]
@@ -160,7 +160,7 @@ class SegFormerLightningModule(pl.LightningModule):
         
         return loss
     
-    def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> None:
+    def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         """Validation step."""
         outputs = self._shared_step(batch, "val")
         loss = outputs["loss"]
@@ -175,7 +175,7 @@ class SegFormerLightningModule(pl.LightningModule):
                 metric_value = metric(outputs["preds"], outputs["targets"])
                 self.log(metric_name, metric_value, on_step=False, on_epoch=True)
     
-    def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> None:
+    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         """Test step."""
         outputs = self._shared_step(batch, "test")
         loss = outputs["loss"]
@@ -190,7 +190,7 @@ class SegFormerLightningModule(pl.LightningModule):
                 metric_value = metric(outputs["preds"], outputs["targets"])
                 self.log(metric_name, metric_value, on_step=False, on_epoch=True)
     
-    def predict_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> Dict[str, torch.Tensor]:
+    def predict_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> dict[str, torch.Tensor]:
         """Prediction step."""
         outputs = self._shared_step(batch, "predict")
         
@@ -206,7 +206,7 @@ class SegFormerLightningModule(pl.LightningModule):
             "image_path": batch.get("image_path", None),
         }
     
-    def configure_optimizers(self) -> Dict[str, Any]:
+    def configure_optimizers(self) -> dict[str, any]:
         """Configure optimizers and schedulers."""
         optimizer = torch.optim.AdamW(
             self.parameters(),
@@ -231,89 +231,4 @@ class SegFormerLightningModule(pl.LightningModule):
         }
 
 
-class SimpleCNN(pl.LightningModule):
-    """Simple CNN model for basic tasks (legacy support)."""
-    
-    def __init__(
-        self,
-        num_classes: int = 10,
-        learning_rate: float = 1e-3,
-        weight_decay: float = 1e-4,
-        **kwargs,
-    ):
-        """Initialize simple CNN."""
-        super().__init__()
-        self.save_hyperparameters()
-        
-        self.learning_rate = learning_rate
-        self.weight_decay = weight_decay
-        
-        # Simple CNN architecture for MNIST (grayscale)
-        self.features = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2),
-        )
-        
-        self.classifier = nn.Sequential(
-            nn.AdaptiveAvgPool2d((7, 7)),
-            nn.Flatten(),
-            nn.Linear(128 * 7 * 7, 512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.5),
-            nn.Linear(512, num_classes),
-        )
-        
-        self.loss_fn = nn.CrossEntropyLoss()
-        
-        # Metrics
-        self.train_acc = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
-        self.val_acc = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
-    
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass."""
-        x = self.features(x)
-        x = self.classifier(x)
-        return x
-    
-    def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> torch.Tensor:
-        """Training step."""
-        images, targets = batch
-        
-        logits = self.forward(images)
-        loss = self.loss_fn(logits, targets)
-        
-        preds = torch.argmax(logits, dim=1)
-        self.train_acc(preds, targets)
-        
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
-        self.log("train_acc", self.train_acc, on_step=False, on_epoch=True)
-        
-        return loss
-    
-    def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> None:
-        """Validation step."""
-        images, targets = batch
-        
-        logits = self.forward(images)
-        loss = self.loss_fn(logits, targets)
-        
-        preds = torch.argmax(logits, dim=1)
-        self.val_acc(preds, targets)
-        
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val_acc", self.val_acc, on_step=False, on_epoch=True)
-    
-    def configure_optimizers(self) -> torch.optim.Optimizer:
-        """Configure optimizer."""
-        return torch.optim.Adam(
-            self.parameters(),
-            lr=self.learning_rate,
-            weight_decay=self.weight_decay,
-        )
+

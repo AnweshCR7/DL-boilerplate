@@ -1,7 +1,8 @@
 """Main training script using PyTorch Lightning and Hydra."""
+from __future__ import annotations
+
 import os
 from pathlib import Path
-from typing import Any, Dict
 
 import hydra
 import pytorch_lightning as pl
@@ -15,18 +16,14 @@ from pytorch_lightning.callbacks import (
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 from src.data import OxfordPetDataModule
-from src.model import SegFormerLightningModule, SimpleCNN
-import logging
+from src.model import SegFormerLightningModule
 import os
 import random
 from pathlib import Path
 
 import numpy as np
 import torch
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+from loguru import logger
 
 
 def set_seed(seed: int) -> None:
@@ -108,7 +105,7 @@ def instantiate_logger(cfg: DictConfig) -> list:
     return loggers
 
 
-def train(cfg: DictConfig) -> Dict[str, Any]:
+def train(cfg: DictConfig) -> dict[str, any]:
     """Training pipeline."""
     # Set seed for reproducibility
     set_seed(cfg.seed)
@@ -116,14 +113,14 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
     # Create output directory
     create_output_dir(cfg.paths.output_dir)
     
-    log.info(f"Starting training with config:\n{OmegaConf.to_yaml(cfg)}")
+    logger.info(f"Starting training with config:\n{OmegaConf.to_yaml(cfg)}")
     
     # Initialize data module
-    log.info("Initializing data module...")
+    logger.info("Initializing data module...")
     datamodule: pl.LightningDataModule = hydra.utils.instantiate(cfg.data, _recursive_=False)
     
     # Initialize model
-    log.info("Initializing model...")
+    logger.info("Initializing model...")
     model: pl.LightningModule = hydra.utils.instantiate(cfg.model, _recursive_=False)
     
     # Initialize callbacks
@@ -133,7 +130,7 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
     loggers = instantiate_logger(cfg)
     
     # Initialize trainer
-    log.info("Initializing trainer...")
+    logger.info("Initializing trainer...")
     trainer = pl.Trainer(
         **cfg.trainer,
         callbacks=callbacks,
@@ -143,16 +140,16 @@ def train(cfg: DictConfig) -> Dict[str, Any]:
     
     # Log hyperparameters
     if loggers:
-        for logger in loggers:
-            logger.log_hyperparams(OmegaConf.to_container(cfg, resolve=True))
+        for pl_logger in loggers:
+            pl_logger.log_hyperparams(OmegaConf.to_container(cfg, resolve=True))
     
     # Train the model
-    log.info("Starting training...")
+    logger.info("Starting training...")
     trainer.fit(model=model, datamodule=datamodule)
     
     # Test the model
     if cfg.get("test_after_training", True):
-        log.info("Starting testing...")
+        logger.info("Starting testing...")
         test_results = trainer.test(model=model, datamodule=datamodule, ckpt_path="best")
     else:
         test_results = None
@@ -172,15 +169,15 @@ def main(cfg: DictConfig) -> None:
         # Run training
         results = train(cfg)
         
-        log.info("Training completed successfully!")
-        log.info(f"Best model path: {results['best_model_path']}")
-        log.info(f"Best validation score: {results['best_score']}")
+        logger.info("Training completed successfully!")
+        logger.info(f"Best model path: {results['best_model_path']}")
+        logger.info(f"Best validation score: {results['best_score']}")
         
         if results["test_results"]:
-            log.info(f"Test results: {results['test_results']}")
+            logger.info(f"Test results: {results['test_results']}")
             
     except Exception as e:
-        log.error(f"Training failed with error: {e}")
+        logger.error(f"Training failed with error: {e}")
         raise
 
 

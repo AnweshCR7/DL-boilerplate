@@ -1,9 +1,10 @@
 """Script to test the FastAPI endpoints."""
+from __future__ import annotations
+
 import io
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List
 
 import requests
 from PIL import Image
@@ -21,7 +22,7 @@ class APITester:
         """
         self.base_url = base_url
     
-    def test_health(self) -> Dict[str, Any]:
+    def test_health(self) -> dict[str, any]:
         """Test the health endpoint."""
         print("Testing health endpoint...")
         
@@ -37,7 +38,7 @@ class APITester:
             print(f"❌ Health check failed: {e}")
             return {"error": str(e)}
     
-    def test_model_info(self) -> Dict[str, Any]:
+    def test_model_info(self) -> dict[str, any]:
         """Test the model info endpoint."""
         print("Testing model info endpoint...")
         
@@ -73,7 +74,7 @@ class APITester:
         
         return img_buffer.getvalue()
     
-    def test_single_prediction(self, image_path: str = None) -> Dict[str, Any]:
+    def test_single_prediction(self, image_path: str | None = None) -> dict[str, any]:
         """Test single image prediction.
         
         Args:
@@ -112,7 +113,7 @@ class APITester:
             print(f"❌ Single prediction failed: {e}")
             return {"error": str(e)}
     
-    def test_batch_prediction(self, image_paths: List[str] = None, num_images: int = 3) -> Dict[str, Any]:
+    def test_batch_prediction(self, image_paths: list[str] | None = None, num_images: int = 3) -> dict[str, any]:
         """Test batch prediction.
         
         Args:
@@ -156,7 +157,7 @@ class APITester:
             print(f"❌ Batch prediction failed: {e}")
             return {"error": str(e)}
     
-    def run_all_tests(self, image_path: str = None, image_paths: List[str] = None) -> Dict[str, Dict[str, Any]]:
+    def run_all_tests(self, image_path: str | None = None, image_paths: list[str] | None = None) -> dict[str, dict[str, any]]:
         """Run all available tests.
         
         Args:

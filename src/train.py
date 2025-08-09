@@ -1,165 +1,180 @@
-"""Function for running training job."""
-import argparse
+"""Main training script using PyTorch Lightning and Hydra."""
+from __future__ import annotations
+
+import os
+import random
 from pathlib import Path
-from typing import List, Any
-from loguru import logger
+
+import hydra
+import numpy as np
+import pytorch_lightning as pl
 import torch
-from torch.utils.data import DataLoader
-from torchvision import transforms
-import torch.nn as nn
-import config
-from src.engine import train_fn, eval_fn
-from src.infer import run_inference
-from src.models.wide_resnet import WideResNet
-from src.utils.dataset import DataLoaderFocusDistance
-from models.resnet import ResNet
+from loguru import logger
+from omegaconf import DictConfig, OmegaConf
+from pytorch_lightning.callbacks import (
+    ModelCheckpoint,
+    EarlyStopping,
+    LearningRateMonitor,
+    TQDMProgressBar,
+)
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+
+from src.data import OxfordPetDataModule
+from src.model import SegFormerLightningModule
 
 
-def run_training(args: argparse.Namespace) -> None:
-    """Function to start a training run.
-    Args:
-        args: command line arguments provided for the training run
-    """
-    logger.info("Run Training")
-    model = ResNet(pretrained=False)
-    # model: Any = WideResNet(pretrained=False)
+def set_seed(seed: int) -> None:
+    """Set seed for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    os.environ["PYTHONHASHSEED"] = str(seed)
 
-    if torch.cuda.is_available():
-        args.device = torch.device("cuda:0")
-        logger.info("GPU available... using GPU 🖥️")
-        torch.cuda.manual_seed_all(41)
+
+def create_output_dir(output_dir: str) -> Path:
+    """Create output directory if it doesn't exist."""
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    return output_path
+
+
+def instantiate_callbacks(cfg: DictConfig) -> list:
+    """Instantiate callbacks from config."""
+    callbacks = []
+    
+    # Model checkpoint callback
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=Path(cfg.paths.output_dir) / "checkpoints",
+        filename="{epoch:02d}-{val_loss:.3f}",
+        monitor="val_loss",
+        mode="min",
+        save_top_k=3,
+        save_last=True,
+        auto_insert_metric_name=False,
+    )
+    callbacks.append(checkpoint_callback)
+    
+    # Early stopping callback
+    early_stopping = EarlyStopping(
+        monitor="val_loss",
+        mode="min",
+        patience=10,
+        verbose=True,
+    )
+    callbacks.append(early_stopping)
+    
+    # Learning rate monitor
+    lr_monitor = LearningRateMonitor(logging_interval="epoch")
+    callbacks.append(lr_monitor)
+    
+    # TQDM progress bar
+    progress_bar = TQDMProgressBar()
+    callbacks.append(progress_bar)
+    
+    return callbacks
+
+
+def instantiate_logger(cfg: DictConfig) -> list:
+    """Instantiate loggers from config."""
+    loggers = []
+    
+    # TensorBoard logger
+    tb_logger = TensorBoardLogger(
+        save_dir=cfg.paths.log_dir,
+        name=cfg.experiment_name,
+        version=None,
+        default_hp_metric=False,
+    )
+    loggers.append(tb_logger)
+    
+    # WandB logger (optional)
+    if cfg.get("use_wandb", False):
+        wandb_logger = WandbLogger(
+            project=cfg.get("wandb_project", "dl-boilerplate"),
+            name=cfg.experiment_name,
+            tags=cfg.get("tags", []),
+        )
+        loggers.append(wandb_logger)
+    
+    return loggers
+
+
+def train(cfg: DictConfig) -> dict[str, any]:
+    """Training pipeline."""
+    set_seed(cfg.seed)
+    
+    create_output_dir(cfg.paths.output_dir)
+    
+    logger.info(f"Starting training with config:\n{OmegaConf.to_yaml(cfg)}")
+    
+    # Initialize data module
+    logger.info("Initializing data module...")
+    datamodule: pl.LightningDataModule = hydra.utils.instantiate(cfg.data, _recursive_=False)
+    
+    # Initialize model
+    logger.info("Initializing model...")
+    model: pl.LightningModule = hydra.utils.instantiate(cfg.model, _recursive_=False)
+    
+    # Initialize callbacks
+    callbacks = instantiate_callbacks(cfg)
+    
+    # Initialize loggers
+    loggers = instantiate_logger(cfg)
+    
+    # Initialize trainer
+    logger.info("Initializing trainer...")
+    trainer = pl.Trainer(
+        **cfg.trainer,
+        callbacks=callbacks,
+        logger=loggers,
+        deterministic=True,
+    )
+    
+    # Log hyperparameters
+    if loggers:
+        for pl_logger in loggers:
+            pl_logger.log_hyperparams(OmegaConf.to_container(cfg, resolve=True))
+    
+    # Train the model
+    logger.info("Starting training...")
+    trainer.fit(model=model, datamodule=datamodule)
+    
+    # Test the model
+    if cfg.get("test_after_training", True):
+        logger.info("Starting testing...")
+        test_results = trainer.test(model=model, datamodule=datamodule, ckpt_path="best")
     else:
-        args.device = torch.device("cpu")
-        logger.info("GPU not available... using CPU 💻")
+        test_results = None
+    
+    # Return results
+    return {
+        "best_model_path": trainer.checkpoint_callback.best_model_path,
+        "best_score": trainer.checkpoint_callback.best_model_score,
+        "test_results": test_results,
+    }
 
-    model.to(args.device)
 
-    optimizer: Any = torch.optim.Adam(model.parameters(), lr=args.lr)
-    scheduler: Any = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, factor=0.8, patience=5, verbose=True
-    )
-    criterion: Any = nn.L1Loss()
-
-    train_transforms: Any = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.5,), (0.5,)),
-        ]
-    )
-
-    logger.info("Creating Dataloaders 💽")
-    train_image_paths: List[Path] = [
-        path for path in (config.DATASET_PATH / Path("train")).glob("*.png")
-    ][:2]
-
-    train_dataset: DataLoaderFocusDistance = DataLoaderFocusDistance(
-        image_paths=train_image_paths,
-        resize=(config.IMAGE_HEIGHT, config.IMAGE_WIDTH),
-        transforms=train_transforms,
-    )
-    train_loader: DataLoader = torch.utils.data.DataLoader(
-        dataset=train_dataset,
-        batch_size=config.BATCH_SIZE,
-        num_workers=config.NUM_WORKERS,
-        shuffle=False,
-    )
-
-    val_image_paths: List[Path] = [
-        path for path in (config.DATASET_PATH / Path("val")).glob("*.png")
-    ][:2]
-
-    val_dataset: DataLoaderFocusDistance = DataLoaderFocusDistance(
-        image_paths=val_image_paths,
-        resize=(config.IMAGE_HEIGHT, config.IMAGE_WIDTH),
-        transforms=train_transforms,
-    )
-    val_loader: DataLoader = torch.utils.data.DataLoader(
-        dataset=val_dataset,
-        batch_size=config.BATCH_SIZE,
-        num_workers=config.NUM_WORKERS,
-        shuffle=False,
-    )
-
-    logger.info("Starting training job... 🏋️")
-    avg_train_loss = train_fn(
-        model=model,
-        train_data_loader=train_loader,
-        val_data_loader=val_loader,
-        optimizer=optimizer,
-        scheduler=scheduler,
-        criterion=criterion,
-        args=args,
-    )
-
-    avg_val_loss = eval_fn(
-        model=model, data_loader=val_loader, criterion=criterion, args=args
-    )
-    logger.info(
-        f"Completed {args.epochs} epochs => Training Loss: {avg_train_loss}, Val Loss: {avg_val_loss}"
-    )
-
-    if not args.skip_test:
-        run_inference(args=args)
-
-    logger.info("Job complete! ✅")
+@hydra.main(version_base="1.3", config_path="../configs", config_name="config")
+def main(cfg: DictConfig) -> None:
+    """Main function."""
+    try:
+        # Run training
+        results = train(cfg)
+        
+        logger.info("Training completed successfully!")
+        logger.info(f"Best model path: {results['best_model_path']}")
+        logger.info(f"Best validation score: {results['best_score']}")
+        
+        if results["test_results"]:
+            logger.info(f"Test results: {results['test_results']}")
+            
+    except Exception as e:
+        logger.error(f"Training failed with error: {e}")
+        raise
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Focus Distance Prediction - PyTorch")
-    parser.add_argument(
-        "--log-step", default=10, type=int, help="Print logs every log_step"
-    )
-    parser.add_argument(
-        "--save-step", default=10, type=int, help="Save checkpoint every save_step"
-    )
-    parser.add_argument(
-        "--eval-step",
-        default=10,
-        type=int,
-        help="Evaluate dataset every eval_step, disabled when eval_step < 0",
-    )
-    parser.add_argument(
-        "--load-pretrained",
-        action="store_true",
-        help="if true then the model loads pretrained weights either from s3 (--use-s3-weights) or locally",
-    )
-    parser.add_argument("--use_tensorboard", default=True, action="store_true")
-    parser.add_argument(
-        "--seed",
-        default=0,
-        type=int,
-        help="Random seed for processes. Seed must be fixed for distributed training",
-    )
-    parser.add_argument(
-        "--batch-size",
-        default=config.BATCH_SIZE,
-        type=int,
-        help="Size of a batch of data",
-    )
-    parser.add_argument(
-        "--skip-test",
-        dest="skip_test",
-        help="Do not test the final model",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--epochs",
-        default=config.EPOCHS,
-        type=str,
-        help="Number of epochs",
-    )
-    parser.add_argument(
-        "--lr",
-        default=config.LR,
-        type=float,
-        help="Learning Rate",
-    )
-    # Always on
-    parser.add_argument(
-        "--verbose",
-        default="True",
-        action="store_true",
-        help="Provides more logging",
-    )
-    args: argparse.Namespace = parser.parse_args()
-    run_training(args=args)
+    main()

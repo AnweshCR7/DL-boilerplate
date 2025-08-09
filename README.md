@@ -1,53 +1,67 @@
-# Focus distance prediction.
-Deep neural network to predict the 'relative focus distance' from the focus plane based on a
-single grayscale image containing cells resting on a glass.
-## Setup
-### Preparing the environment:
-Poetry installation docs: https://python-poetry.org/docs/ 
+# DL Boilerplate - Modern Deep Learning Project Template
 
-To make sure poetry is installed and available in your system, run a version check in your terminal: 
+A modern, configurable, and production-ready deep learning boilerplate using PyTorch Lightning, Hydra, and FastAPI.
+## ✨ Features
 
-```Poetry --version -> Poetry (version 1.x.x) ```
-1. A poetry environment needs to be set up for running this repository locally.
+- **Modern Stack**: PyTorch Lightning, Hydra configuration management, FastAPI
+- **Experiment Tracking**: TensorBoard, Weights & Biases, ClearML support
+- **Model Flexibility**: SegFormer, custom CNNs, easy to extend
+- **Production Ready**: FastAPI inference server with batch processing
+- **Reproducible**: Seed management, deterministic training
+- **Clean Architecture**: Modular design, type hints, comprehensive logging
 
-```
-poetry shell
-```
-
-A local env will get created (and activated) coupled with the python version that was selected for this repository
-(in this case python 3.8):
+## 🏗️ Project Structure
 
 ```
-(focus-distance-prediction-py3.8) anweshcr7@home:~/Dev/focus-distance-prediction$
-```
-2. Update poetry lock dependencies
-
-```
-poetry lock --no-update
-```
-
-3. Once the .lock file is resolved, we can install packages using the following command
-
-```
-poetry install
-```
-
-4. After the poetry packages have been correctly installed, the shell prompt should look like this:
-
-```
-(focus-distance-prediction-py3.8) anweshcr7@home:~/Dev/focus-distance-prediction$
+├── configs/                    # Hydra configuration files
+│   ├── config.yaml            # Main configuration
+│   ├── data/
+│   │   └── surgical_tools.yaml # Data configuration
+│   └── model/
+│       └── segformer_b0.yaml  # Model configuration
+├── src/                       # Source code
+│   ├── data.py               # PyTorch Lightning DataModule
+│   ├── model.py              # PyTorch Lightning LightningModule
+│   ├── train.py              # Main training script
+│   └── utils.py              # Helper functions
+├── api/                      # FastAPI inference server
+│   ├── main.py              # FastAPI application
+│   └── test_request.py      # API testing script
+└── data/                    # Data directory (empty by default)
 ```
 
-5. (If Required) Missing packages may be installed using the following command:
+## 🚀 Quick Start
 
-```
-poetry add <pkg-name>
+### Environment Setup
+
+```bash
+# Create virtual environment with uv
+uv venv
+source .venv/bin/activate
+
+# Install dependencies
+uv sync
 ```
 
-or
+### Training
 
+```bash
+# Basic training with default configuration
+python src/train.py
+
+# Override configuration parameters
+python src/train.py trainer.max_epochs=50 data.batch_size=32
 ```
-poetry add <pkg-name>==<version>
+
+### API Server
+
+```bash
+# Start the FastAPI server
+cd api
+python main.py
+
+# Test the API
+python test_request.py
 ```
 
 

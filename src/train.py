@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import os
+import random
 from pathlib import Path
 
 import hydra
+import numpy as np
 import pytorch_lightning as pl
+import torch
+from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.callbacks import (
     ModelCheckpoint,
@@ -17,13 +21,6 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 from src.data import OxfordPetDataModule
 from src.model import SegFormerLightningModule
-import os
-import random
-from pathlib import Path
-
-import numpy as np
-import torch
-from loguru import logger
 
 
 def set_seed(seed: int) -> None:
@@ -107,10 +104,8 @@ def instantiate_logger(cfg: DictConfig) -> list:
 
 def train(cfg: DictConfig) -> dict[str, any]:
     """Training pipeline."""
-    # Set seed for reproducibility
     set_seed(cfg.seed)
     
-    # Create output directory
     create_output_dir(cfg.paths.output_dir)
     
     logger.info(f"Starting training with config:\n{OmegaConf.to_yaml(cfg)}")

@@ -212,15 +212,28 @@ class OxfordPetSegmentationDataset(Dataset):
             transformed = self.transforms(image=image, mask=mask)
             image = transformed["image"]
             mask = transformed["mask"]
-            # Ensure mask is long tensor
+            
             if isinstance(mask, torch.Tensor):
+                # Remove any singleton dimensions and ensure 2D
+                mask = mask.squeeze()
+                # If somehow still has more than 2 dimensions, take the first channel
+                if len(mask.shape) > 2:
+                    mask = mask[0] if mask.shape[0] == 1 else mask[0]
                 mask = mask.long()
             else:
+                # Convert numpy to tensor
                 mask = torch.from_numpy(mask).long()
+                # Ensure 2D
+                if len(mask.shape) > 2:
+                    mask = mask.squeeze()
         else:
             # Convert to tensors manually if no transforms
             image = torch.from_numpy(image).permute(2, 0, 1).float() / 255.0
             mask = torch.from_numpy(mask).long()
+        
+        # Final safety check: ensure mask is exactly 2D
+        if len(mask.shape) != 2:
+            raise ValueError(f"Mask must be 2D (H, W), got shape {mask.shape}. Original mask shape after transforms: {mask.shape}")
         
         return {
             "image": image,

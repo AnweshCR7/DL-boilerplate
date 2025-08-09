@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from transformers import SegformerForSemanticSegmentation
+from transformers import SegformerForSemanticSegmentation, SegformerConfig
 import torchmetrics
 
 
@@ -15,7 +15,7 @@ class SegFormerLightningModule(pl.LightningModule):
     def __init__(
         self,
         model_name: str = "nvidia/segformer-b0-finetuned-ade-512-512",
-        num_classes: int = 10,
+        num_classes: int = 3,  # Fixed: should be 3 for Oxford Pet dataset
         learning_rate: float = 1e-4,
         weight_decay: float = 1e-2,
         loss_fn: nn.Module | None = None,
@@ -58,7 +58,6 @@ class SegFormerLightningModule(pl.LightningModule):
                 ignore_mismatched_sizes=True,
             )
         else:
-            from transformers import SegformerConfig
             config = SegformerConfig(
                 num_labels=num_classes,
                 hidden_dropout_prob=dropout,
@@ -132,6 +131,25 @@ class SegFormerLightningModule(pl.LightningModule):
         
         loss = None
         if targets is not None:
+            # Targets should be (N, H, W) and logits should be (N, C, H, W)
+            
+            # If targets have extra dimensions, squeeze them
+            while len(targets.shape) > 3:
+                targets = targets.squeeze(-1)
+            
+            # If targets are 4D with channel dim of 1, remove it
+            if len(targets.shape) == 4 and targets.shape[1] == 1:
+                targets = targets.squeeze(1)
+            
+            # Ensure targets are long type
+            targets = targets.long()
+            
+            # Verify shapes before loss computation
+            if len(logits.shape) != 4:
+                raise ValueError(f"Logits should be 4D (N, C, H, W), got {logits.shape}")
+            if len(targets.shape) != 3:
+                raise ValueError(f"Targets should be 3D (N, H, W), got {targets.shape}")
+            
             loss = self.loss_fn(logits, targets)
         
         # Get predictions
@@ -229,6 +247,3 @@ class SegFormerLightningModule(pl.LightningModule):
                 "frequency": 1,
             },
         }
-
-
-

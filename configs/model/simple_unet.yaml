@@ -1,0 +1,28 @@
+# @package _global_
+
+# Model configuration for Simple U-Net
+model:
+  _target_: src.model.simple_unet_lightning.SimpleUNetLightningModule
+  
+  # Model architecture
+  in_channels: 3
+  num_classes: ${data.num_classes}
+  
+  # Training hyperparameters (optimized for fast training)
+  learning_rate: 1e-3  # Higher LR for simple model
+  weight_decay: 1e-4
+  
+  # Loss function
+  loss_fn:
+    _target_: torch.nn.CrossEntropyLoss
+    ignore_index: 255
+    weight: null
+  
+  # Metrics
+  metrics:
+    - "accuracy"
+    - "iou"
+    - "dice"
+  
+  # Model specific settings
+  # (No pretrained weights or freezing needed for simple model)

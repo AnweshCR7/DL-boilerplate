@@ -15,7 +15,7 @@ from pydantic import BaseModel
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-from src.model import SegFormerLightningModule
+from src.model.model import SegFormerLightningModule
 
 
 # Initialize logger

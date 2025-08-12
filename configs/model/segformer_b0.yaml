@@ -2,7 +2,7 @@
 
 # Model configuration for SegFormer-B0
 model:
-  _target_: src.model.SegFormerLightningModule
+  _target_: src.model.model.SegFormerLightningModule
   
   # Model architecture
   model_name: "nvidia/segformer-b0-finetuned-ade-512-512"

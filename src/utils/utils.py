@@ -1,12 +1,18 @@
-"""Utility functions for the project."""
+"""
+This module contains utility functions.
+"""
+
+import importlib
+import logging
 import os
 import random
-import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, cast
 
 import numpy as np
 import torch
+from ruamel.yaml import YAML
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 from PIL import Image
@@ -299,3 +305,34 @@ def create_inference_grid(
         plt.close()
     else:
         plt.show()
+
+
+def get_instance(class_path: str, params: Optional[Dict[str, Any]] = None) -> Any:
+    """
+    Dynamically instantiate a class from a string path.
+    
+    Args:
+        class_path: Full path to the class (e.g., 'src.datasets.data.OxfordPetDataset')
+        params: Parameters to pass to the class constructor
+        
+    Returns:
+        Instance of the specified class
+    """
+    if params is None:
+        params = {}
+    
+    try:
+        # Split the class path into module and class name
+        module_path, class_name = class_path.rsplit('.', 1)
+        
+        # Import the module
+        module = importlib.import_module(module_path)
+        
+        # Get the class
+        cls = getattr(module, class_name)
+        
+        # Instantiate the class with parameters
+        return cls(**params)
+        
+    except (ImportError, AttributeError, ValueError) as e:
+        raise RuntimeError(f"Failed to instantiate {class_path}: {str(e)}")

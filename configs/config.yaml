@@ -1,6 +1,6 @@
 # Main configuration file
 defaults:
-  - data: oxford_pet
+  - data: oxford_pet  # Change this to switch datasets: oxford_pet, fashion_mnist, etc.
   - model: segformer_b0
   - _self_
 

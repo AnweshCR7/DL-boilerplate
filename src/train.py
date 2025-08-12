@@ -19,8 +19,8 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
-from src.data import OxfordPetDataModule
-from src.model import SegFormerLightningModule
+from datasets.datamodule import DataModule
+from model.model import SegFormerLightningModule
 
 
 def set_seed(seed: int) -> None:

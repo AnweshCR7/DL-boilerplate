@@ -9,8 +9,8 @@ import numpy as np
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
-from utils import utils
-from utils.config import DataLoadersParams
+from ..utils import utils
+from ..utils.config import DataLoadersParams
 
 
 logger = logging.getLogger(__name__)
@@ -87,22 +87,44 @@ class DataModule(LightningDataModule):
         try:
             if self.mode == "train":
                 logger.info(f"Setting up train dataset: {self.dataset_class}")
+                
+                # Convert DictConfig to dict if needed
+                dataset_params_dict = self.dataset_params
+                train_params_dict = self.train_dataset_params
+                if hasattr(dataset_params_dict, '_content'):
+                    dataset_params_dict = dict(dataset_params_dict)
+                if hasattr(train_params_dict, '_content'):
+                    train_params_dict = dict(train_params_dict)
+                
                 self.data_train = utils.get_instance(
                     self.dataset_class, 
-                    {"mode": "train"} | self.dataset_params | self.train_dataset_params
+                    {"mode": "train"} | dataset_params_dict | train_params_dict
                 )
                 
                 logger.info(f"Setting up validation dataset: {self.dataset_class}")
+                
+                val_params_dict = self.val_dataset_params
+                if hasattr(val_params_dict, '_content'):
+                    val_params_dict = dict(val_params_dict)
+                
                 self.data_val = utils.get_instance(
                     self.dataset_class, 
-                    {"mode": "val"} | self.dataset_params | self.val_dataset_params
+                    {"mode": "val"} | dataset_params_dict | val_params_dict
                 )
                 
             elif self.mode == "test":
                 logger.info(f"Setting up test dataset: {self.dataset_class}")
+                
+                dataset_params_dict = self.dataset_params
+                test_params_dict = self.test_dataset_params
+                if hasattr(dataset_params_dict, '_content'):
+                    dataset_params_dict = dict(dataset_params_dict)
+                if hasattr(test_params_dict, '_content'):
+                    test_params_dict = dict(test_params_dict)
+                
                 self.data_test = utils.get_instance(
                     self.dataset_class, 
-                    {"mode": "test"} | self.dataset_params | self.test_dataset_params
+                    {"mode": "test"} | dataset_params_dict | test_params_dict
                 )
                 
         except Exception as e:
@@ -117,18 +139,26 @@ class DataModule(LightningDataModule):
 
     def _get_dataloader_kwargs(self, dataset, dataloader_params: Dict[str, Any]) -> Dict[str, Any]:
         """Get dataloader keyword arguments with proper defaults and dataset-specific settings."""
-        kwargs = self.dataloader_params.copy()
-        kwargs.update(dataloader_params)
+        # Convert DictConfig to dict if needed
+        base_params = self.dataloader_params
+        if hasattr(base_params, '_content'):
+            base_params = dict(base_params)
+        else:
+            base_params = base_params.copy()
+            
+        specific_params = dataloader_params
+        if hasattr(specific_params, '_content'):
+            specific_params = dict(specific_params)
+        
+        kwargs = base_params.copy()
+        kwargs.update(specific_params)
         
         # Add collate function if available
         collate_fn = self._get_collate_fn(dataset)
         if collate_fn is not None:
             kwargs["collate_fn"] = collate_fn
             
-        # Add worker initialization for reproducibility
-        kwargs["worker_init_fn"] = lambda worker_id: np.random.seed(
-            np.random.get_state()[1][0] + worker_id  # type: ignore
-        )
+        # Note: worker_init_fn removed to avoid multiprocessing pickling issues
         
         return kwargs
 
@@ -155,3 +185,8 @@ class DataModule(LightningDataModule):
         
         kwargs = self._get_dataloader_kwargs(self.data_test, self.test_dataloader_params)
         return DataLoader(self.data_test, **kwargs)
+    
+    def on_exception(self, exception: Exception) -> None:
+        """Handle exceptions during training."""
+        logger.error(f"DataModule encountered an exception: {exception}")
+        # Clean up any resources if needed

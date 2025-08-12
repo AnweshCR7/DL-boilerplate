@@ -5,6 +5,7 @@ Example script demonstrating how to use the generic DataModule with Oxford Pet d
 
 import yaml
 from src.datasets.datamodule import DataModule
+from utils import visualize_segmentation
 
 
 def load_config(config_path: str):
@@ -17,18 +18,25 @@ def main():
     """Main function demonstrating the generic DataModule usage."""
     
     # Load configuration
-    config = load_config("configs/config.yaml")
+    config = load_config("../configs/data/oxford_pet.yaml")
     
     print("=== Dataset with Generic DataModule ===")
     print(f"Using dataset: {config['data']['dataset']}")
     
     # Create training DataModule
     print("\n1. Creating training DataModule...")
+    
+    # Modify dataloader params to avoid multiprocessing issues
+    dataloader_params = config["data"]["dataloader_params"].copy()
+    dataloader_params["num_workers"] = 0  # Disable multiprocessing
+    dataloader_params["pin_memory"] = False  # Disable pin_memory for MPS compatibility
+    dataloader_params["persistent_workers"] = False  # Disable persistent workers when num_workers=0
+    
     train_datamodule = DataModule(
         mode="train",
         dataset=config["data"]["dataset"],
         dataset_params=config["data"]["dataset_params"],
-        dataloader_params=config["data"]["dataloader_params"],
+        dataloader_params=dataloader_params,
         train_dataloader_params=config["data"]["train_dataloader_params"],
         val_dataloader_params=config["data"]["val_dataloader_params"],
     )
@@ -41,6 +49,7 @@ def main():
     print(f"Sample keys: {sample.keys()}")
     print(f"Image shape: {sample['image'].shape}")
     print(f"Mask shape: {sample['mask'].shape}")
+    # visualize_segmentation(sample["image"].numpy(), sample["mask"].numpy())
     
     # Create test DataModule
     print("\n2. Creating test DataModule...")
@@ -48,7 +57,7 @@ def main():
         mode="test",
         dataset=config["data"]["dataset"],
         dataset_params=config["data"]["dataset_params"],
-        dataloader_params=config["data"]["dataloader_params"],
+        dataloader_params=dataloader_params,
         test_dataloader_params=config["data"].get("test_dataloader_params", {}),
     )
     

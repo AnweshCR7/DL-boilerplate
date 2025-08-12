@@ -1,7 +1,7 @@
 # Main configuration file
 defaults:
   - data: oxford_pet  # Change this to switch datasets: oxford_pet, fashion_mnist, etc.
-  - model: segformer_b0
+  - model: simple_unet  # Using simple U-Net for fast testing
   - _self_
 
 # Experiment settings
@@ -10,7 +10,7 @@ tags: ["pytorch-lightning", "segmentation", "oxford-pet"]
 
 # Training settings
 trainer:
-  max_epochs: 10
+  max_epochs: 1  # Set to 1 for testing the pipeline
   accelerator: "mps"
   devices: 1
   precision: 32  # Use 32-bit precision for MPS compatibility
@@ -44,9 +44,9 @@ logger:
 
 # Paths
 paths:
-  data_dir: "data/"
-  log_dir: "logs/"
-  output_dir: "outputs/"
+  data_dir: "../data/"
+  log_dir: "runs/logs/"
+  output_dir: "runs/outputs/"
 
 # Misc
 seed: 42

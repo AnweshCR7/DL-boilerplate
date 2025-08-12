@@ -152,10 +152,16 @@ class OxfordPetDataset(Dataset):
                 # Ensure 2D
                 if len(mask.shape) > 2:
                     mask = mask.squeeze()
+            
+            # Remap mask values from [1, 2, 3] to [0, 1, 2] for 3-class segmentation
+            # 1 -> 0 (background), 2 -> 1 (pet), 3 -> 2 (border)
+            mask = mask - 1
         else:
             # Convert to tensors manually if no transforms
             image = torch.from_numpy(image).permute(2, 0, 1).float() / 255.0
             mask = torch.from_numpy(mask).long()
+            # Remap mask values from [1, 2, 3] to [0, 1, 2]
+            mask = mask - 1
         
         # Final safety check: ensure mask is exactly 2D
         if len(mask.shape) != 2:

@@ -7,7 +7,7 @@ from typing import Any, List
 import torch
 
 from ..utils import utils
-from ..utils.typing import CriterionConfig
+from ..utils.config import CriterionConfig
 
 
 class MultiCriterion(torch.nn.Module):

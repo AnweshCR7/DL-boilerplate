@@ -19,8 +19,8 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
-from datasets.datamodule import DataModule
-from model.model import SegFormerLightningModule
+from src.datasets.datamodule import DataModule
+from src.model.simple_unet_lightning import SimpleUNetLightningModule
 
 
 def set_seed(seed: int) -> None:

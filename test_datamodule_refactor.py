@@ -19,7 +19,7 @@ def test_dataset_creation():
     train_dataset = OxfordPetDataset(
         mode="train",
         data_dir="data/",
-        download=False,  # Don't download for testing
+        download=True,  # Download for testing
         image_size=(256, 256)
     )
     print(f"✓ Training dataset created with {len(train_dataset)} samples")
@@ -28,7 +28,7 @@ def test_dataset_creation():
     val_dataset = OxfordPetDataset(
         mode="val",
         data_dir="data/",
-        download=False,
+        download=True,
         image_size=(256, 256)
     )
     print(f"✓ Validation dataset created with {len(val_dataset)} samples")
@@ -37,7 +37,7 @@ def test_dataset_creation():
     test_dataset = OxfordPetDataset(
         mode="test",
         data_dir="data/",
-        download=False,
+        download=True,
         image_size=(256, 256)
     )
     print(f"✓ Test dataset created with {len(test_dataset)} samples")
@@ -55,7 +55,7 @@ def test_datamodule_creation():
         dataset="src.datasets.data.OxfordPetDataset",
         dataset_params={
             "data_dir": "data/",
-            "download": False,
+            "download": True,
             "image_size": (256, 256)
         },
         dataloader_params={
@@ -71,7 +71,7 @@ def test_datamodule_creation():
         dataset="src.datasets.data.OxfordPetDataset",
         dataset_params={
             "data_dir": "data/",
-            "download": False,
+            "download": True,
             "image_size": (256, 256)
         },
         dataloader_params={
